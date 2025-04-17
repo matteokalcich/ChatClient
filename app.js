@@ -4,13 +4,38 @@ let selectedClientId = null;
 let chats = {}; 
 let username = null;
 let pallini = new Map(); // <--- per salvare riferimento ai pallini
+const config = { //config server for call
+  iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+};
+
+let startCall;
+let status_call;
+
+let localStream;
+let peerConnection;
 
 document.addEventListener("DOMContentLoaded", () => {
+  
   username = prompt("Inserisci il tuo nome utente:");
   if (!username) {
     alert("Nome utente obbligatorio.");
     return;
   }
+
+  status_call = document.getElementById('status');
+  startCall = document.getElementById('startCall');
+
+  startCall.onclick = async () => {
+
+    debugger;
+    await createPeerConnection();
+  
+    const offer = await peerConnection.createOffer();
+    await peerConnection.setLocalDescription(offer);
+    socket.send(JSON.stringify({ type: 'offer', offer }));
+  
+    status_call.textContent = "📞 In attesa di risposta...";
+  };
 
   socket = new WebSocket("ws://localhost:8081");
 
@@ -18,7 +43,7 @@ document.addEventListener("DOMContentLoaded", () => {
     socket.send(JSON.stringify({ type: "setName", name: username }));
   };
 
-  socket.onmessage = (event) => {
+  socket.onmessage = async (event) => {
     const msg = JSON.parse(event.data);
 
     if (msg.type == "init") {
@@ -45,6 +70,39 @@ document.addEventListener("DOMContentLoaded", () => {
         if (pallino) {
           pallino.style.display = "inline-block";
         }
+      }
+    }
+    else if (data.type === 'offer') {
+      await createPeerConnection();
+      await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
+  
+      const answer = await peerConnection.createAnswer();
+      await peerConnection.setLocalDescription(answer);
+      socket.send(JSON.stringify({ type: 'answer', answer }));
+  
+      // ✅ Ora possiamo processare le ICE candidate salvate
+      pendingCandidates.forEach(candidate => {
+        peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+      });
+      pendingCandidates = [];
+  
+      status.textContent = "✅ Chiamata ricevuta";
+  
+    } else if (data.type === 'answer') {
+      await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+      status.textContent = "✅ Chiamata connessa";
+  
+      // ✅ Ora possiamo processare le ICE candidate salvate
+      pendingCandidates.forEach(candidate => {
+        peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+      });
+      pendingCandidates = [];
+  
+    } else if (data.type === 'ice-candidate') {
+      if (peerConnection?.remoteDescription) {
+        peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+      } else {
+        pendingCandidates.push(data.candidate);
       }
     }
   };
@@ -132,4 +190,30 @@ function renderMessages(userId) {
   });
 
   box.scrollTop = box.scrollHeight;
+}
+
+async function createPeerConnection() {
+  peerConnection = new RTCPeerConnection(config);
+
+  // Solo audio
+  localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+  // Aggiungi tracce al peer
+  localStream.getTracks().forEach(track => {
+    peerConnection.addTrack(track, localStream);
+  });
+
+  // Riproduci l'audio remoto
+  peerConnection.ontrack = (event) => {
+    const remoteAudio = new Audio();
+    remoteAudio.srcObject = event.streams[0];
+    remoteAudio.play();
+  };
+
+  // ICE candidate
+  peerConnection.onicecandidate = (event) => {
+    if (event.candidate) {
+      socket.send(JSON.stringify({ type: 'ice-candidate', candidate: event.candidate }));
+    }
+  };
 }
