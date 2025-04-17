@@ -1,10 +1,10 @@
 let socket;
 let clientId = null;
 let selectedClientId = null;
-let chats = {}; 
+let chats = {};
 let username = null;
-let pallini = new Map(); // <--- per salvare riferimento ai pallini
-const config = { //config server for call
+let pallini = new Map();
+const config = {
   iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
 };
 
@@ -13,9 +13,9 @@ let status_call;
 
 let localStream;
 let peerConnection;
+let pendingCandidates = [];
 
 document.addEventListener("DOMContentLoaded", () => {
-  
   username = prompt("Inserisci il tuo nome utente:");
   if (!username) {
     alert("Nome utente obbligatorio.");
@@ -26,14 +26,17 @@ document.addEventListener("DOMContentLoaded", () => {
   startCall = document.getElementById('startCall');
 
   startCall.onclick = async () => {
+    if (!selectedClientId) {
+      alert("Seleziona un utente prima di avviare la chiamata.");
+      return;
+    }
 
-    debugger;
     await createPeerConnection();
-  
+
     const offer = await peerConnection.createOffer();
     await peerConnection.setLocalDescription(offer);
-    socket.send(JSON.stringify({ type: 'offer', offer }));
-  
+    socket.send(JSON.stringify({ type: 'offer', offer, to: selectedClientId }));
+
     status_call.textContent = "📞 In attesa di risposta...";
   };
 
@@ -65,44 +68,46 @@ document.addEventListener("DOMContentLoaded", () => {
       if (from == selectedClientId) {
         renderMessages(from);
       } else {
-        // Mostra il pallino verde
         const pallino = pallini.get(from);
         if (pallino) {
           pallino.style.display = "inline-block";
         }
       }
     }
-    else if (data.type === 'offer') {
+
+    else if (msg.type === 'offer') {
+      selectedClientId = msg.from;
+
       await createPeerConnection();
-      await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
-  
+      await peerConnection.setRemoteDescription(new RTCSessionDescription(msg.offer));
+
       const answer = await peerConnection.createAnswer();
       await peerConnection.setLocalDescription(answer);
-      socket.send(JSON.stringify({ type: 'answer', answer }));
-  
-      // ✅ Ora possiamo processare le ICE candidate salvate
+      socket.send(JSON.stringify({ type: 'answer', answer, to: selectedClientId }));
+
       pendingCandidates.forEach(candidate => {
         peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
       });
       pendingCandidates = [];
-  
-      status.textContent = "✅ Chiamata ricevuta";
-  
-    } else if (data.type === 'answer') {
-      await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
-      status.textContent = "✅ Chiamata connessa";
-  
-      // ✅ Ora possiamo processare le ICE candidate salvate
+
+      status_call.textContent = "✅ Chiamata ricevuta";
+    }
+
+    else if (msg.type === 'answer') {
+      await peerConnection.setRemoteDescription(new RTCSessionDescription(msg.answer));
+      status_call.textContent = "✅ Chiamata connessa";
+
       pendingCandidates.forEach(candidate => {
         peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
       });
       pendingCandidates = [];
-  
-    } else if (data.type === 'ice-candidate') {
+    }
+
+    else if (msg.type === 'ice-candidate') {
       if (peerConnection?.remoteDescription) {
-        peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+        peerConnection.addIceCandidate(new RTCIceCandidate(msg.candidate));
       } else {
-        pendingCandidates.push(data.candidate);
+        pendingCandidates.push(msg.candidate);
       }
     }
   };
@@ -125,7 +130,7 @@ document.addEventListener("DOMContentLoaded", () => {
 function updateUserList(users) {
   const listDiv = document.getElementById("userList");
   listDiv.innerHTML = "";
-  pallini.clear(); // svuota la mappa
+  pallini.clear();
 
   users.forEach((user) => {
     if (user.id == clientId) return;
@@ -140,26 +145,19 @@ function updateUserList(users) {
     btn.className = "userButton";
     btn.textContent = user.name;
     btn.onclick = () => {
-        selectedClientId = user.id;
-        document.getElementById("chatHeader").textContent = "Chat con " + user.name;
-      
-    
-        document.querySelectorAll('.userEntry button').forEach(element => {
-          element.style.background = "none";
-        });
-      
-    
-        btn.style.backgroundColor = "#ccc";
-      
-    
-        const pallino = pallini.get(user.id);
-        if (pallino) {
-          pallino.style.display = "none";
-        }
-      
-        renderMessages(user.id);
-      };
-      
+      selectedClientId = user.id;
+      document.getElementById("chatHeader").textContent = "Chat con " + user.name;
+
+      document.querySelectorAll('.userEntry button').forEach(el => el.style.background = "none");
+      btn.style.backgroundColor = "#ccc";
+
+      const pallino = pallini.get(user.id);
+      if (pallino) {
+        pallino.style.display = "none";
+      }
+
+      renderMessages(user.id);
+    };
 
     const pallino = document.createElement("img");
     pallino.src = "pallinoVerde.png";
@@ -172,7 +170,6 @@ function updateUserList(users) {
     wrapperDiv.appendChild(pallino);
     listDiv.appendChild(wrapperDiv);
 
-    // Salva il riferimento al pallino per questo utente
     pallini.set(user.id, pallino);
   });
 }
@@ -195,25 +192,25 @@ function renderMessages(userId) {
 async function createPeerConnection() {
   peerConnection = new RTCPeerConnection(config);
 
-  // Solo audio
   localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-  // Aggiungi tracce al peer
   localStream.getTracks().forEach(track => {
     peerConnection.addTrack(track, localStream);
   });
 
-  // Riproduci l'audio remoto
   peerConnection.ontrack = (event) => {
     const remoteAudio = new Audio();
     remoteAudio.srcObject = event.streams[0];
     remoteAudio.play();
   };
 
-  // ICE candidate
   peerConnection.onicecandidate = (event) => {
     if (event.candidate) {
-      socket.send(JSON.stringify({ type: 'ice-candidate', candidate: event.candidate }));
+      socket.send(JSON.stringify({ 
+        type: 'ice-candidate', 
+        candidate: event.candidate, 
+        to: selectedClientId 
+      }));
     }
   };
 }
