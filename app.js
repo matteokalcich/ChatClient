@@ -164,7 +164,7 @@ function updateUserList(users) {
     };
 
     const pallino = document.createElement('img');
-    pallino.src = 'pallinoVerde.png';
+    pallino.src = 'assets/pallinoVerde.png';
     pallino.alt = 'Pallino Verde';
     pallino.style.display = 'none';
     pallino.style.width = '15px';
