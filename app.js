@@ -15,10 +15,10 @@ let localStream;
 let peerConnection;
 let pendingCandidates = [];
 
-document.addEventListener("DOMContentLoaded", () => {
-  username = prompt("Inserisci il tuo nome utente:");
+document.addEventListener('DOMContentLoaded', () => {
+  username = prompt('Inserisci il tuo nome utente:');
   if (!username) {
-    alert("Nome utente obbligatorio.");
+    alert('Nome utente obbligatorio.');
     return;
   }
 
@@ -27,7 +27,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   startCall.onclick = async () => {
     if (!selectedClientId) {
-      alert("Seleziona un utente prima di avviare la chiamata.");
+      alert('Seleziona un utente prima di avviare la chiamata.');
       return;
     }
 
@@ -37,28 +37,28 @@ document.addEventListener("DOMContentLoaded", () => {
     await peerConnection.setLocalDescription(offer);
     socket.send(JSON.stringify({ type: 'offer', offer, to: selectedClientId }));
 
-    status_call.textContent = "📞 In attesa di risposta...";
+    status_call.textContent = '📞 In attesa di risposta...';
   };
 
-  socket = new WebSocket("ws://localhost:8081");
+  socket = new WebSocket('ws://localhost:8081');
 
   socket.onopen = () => {
-    socket.send(JSON.stringify({ type: "setName", name: username }));
+    socket.send(JSON.stringify({ type: 'setName', name: username }));
   };
 
   socket.onmessage = async (event) => {
     const msg = JSON.parse(event.data);
 
-    if (msg.type == "init") {
+    if (msg.type == 'init') {
       clientId = msg.id;
     }
 
-    if (msg.type == "userList") {
+    if (msg.type == 'userList') {
       clientId = msg.id;
       updateUserList(msg.users);
     }
 
-    if (msg.type == "message") {
+    if (msg.type == 'message') {
       const from = msg.from;
       const text = msg.text;
 
@@ -70,7 +70,7 @@ document.addEventListener("DOMContentLoaded", () => {
       } else {
         const pallino = pallini.get(from);
         if (pallino) {
-          pallino.style.display = "inline-block";
+          pallino.style.display = 'inline-block';
         }
       }
     }
@@ -90,12 +90,12 @@ document.addEventListener("DOMContentLoaded", () => {
       });
       pendingCandidates = [];
 
-      status_call.textContent = "✅ Chiamata ricevuta";
+      status_call.textContent = '✅ Chiamata ricevuta';
     }
 
     else if (msg.type === 'answer') {
       await peerConnection.setRemoteDescription(new RTCSessionDescription(msg.answer));
-      status_call.textContent = "✅ Chiamata connessa";
+      status_call.textContent = '✅ Chiamata connessa';
 
       pendingCandidates.forEach(candidate => {
         peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
@@ -112,59 +112,63 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
-  document.getElementById("sendButton").addEventListener("click", () => {
-    const input = document.getElementById("messageInput");
+  document.getElementById('sendButton').addEventListener('click', () => {
+    const input = document.getElementById('messageInput');
     const text = input.value.trim();
     if (text && selectedClientId) {
-      socket.send(JSON.stringify({ type: "message", to: selectedClientId, text }));
+      socket.send(JSON.stringify({ type: 'message', to: selectedClientId, text }));
 
       if (!chats[selectedClientId]) chats[selectedClientId] = [];
       chats[selectedClientId].push({ from: clientId, text });
 
       renderMessages(selectedClientId);
-      input.value = "";
+      input.value = '';
     }
   });
 });
 
 function updateUserList(users) {
-  const listDiv = document.getElementById("userList");
-  listDiv.innerHTML = "";
+  const listDiv = document.getElementById('userList');
+  listDiv.innerHTML = '';
   pallini.clear();
 
   users.forEach((user) => {
     if (user.id == clientId) return;
 
-    const wrapperDiv = document.createElement("div");
-    wrapperDiv.className = "userEntry";
-    wrapperDiv.style.display = "flex";
-    wrapperDiv.style.alignItems = "center";
-    wrapperDiv.style.gap = "8px";
+    const wrapperDiv = document.createElement('div');
+    wrapperDiv.className = 'userEntry';
+    wrapperDiv.style.display = 'flex';
+    wrapperDiv.style.alignItems = 'center';
+    wrapperDiv.style.gap = '8px';
 
-    const btn = document.createElement("button");
-    btn.className = "userButton";
+    const btn = document.createElement('button');
+    btn.className = 'userButton';
     btn.textContent = user.name;
     btn.onclick = () => {
       selectedClientId = user.id;
-      document.getElementById("chatHeader").textContent = "Chat con " + user.name;
+      document.getElementById('chatHeader').textContent = 'Chat con ' + user.name;
+      const btnCall = document.createElement('button');
+      btnCall.textContent = 'Test';
 
-      document.querySelectorAll('.userEntry button').forEach(el => el.style.background = "none");
-      btn.style.backgroundColor = "#ccc";
+      document.getElementById('chatHeader').appendChild(btnCall);
+
+      document.querySelectorAll('.userEntry button').forEach(el => el.style.background = 'none');
+      btn.style.backgroundColor = '#ccc';
 
       const pallino = pallini.get(user.id);
       if (pallino) {
-        pallino.style.display = "none";
+        pallino.style.display = 'none';
       }
 
       renderMessages(user.id);
     };
 
-    const pallino = document.createElement("img");
-    pallino.src = "pallinoVerde.png";
-    pallino.alt = "Pallino Verde";
-    pallino.style.display = "none";
-    pallino.style.width = "15px";
-    pallino.style.height = "12px";
+    const pallino = document.createElement('img');
+    pallino.src = 'pallinoVerde.png';
+    pallino.alt = 'Pallino Verde';
+    pallino.style.display = 'none';
+    pallino.style.width = '15px';
+    pallino.style.height = '12px';
 
     wrapperDiv.appendChild(btn);
     wrapperDiv.appendChild(pallino);
@@ -175,13 +179,13 @@ function updateUserList(users) {
 }
 
 function renderMessages(userId) {
-  const box = document.getElementById("chatMessages");
-  box.innerHTML = "";
+  const box = document.getElementById('chatMessages');
+  box.innerHTML = '';
 
   const messages = chats[userId] || [];
   messages.forEach((msg) => {
-    const div = document.createElement("div");
-    div.className = msg.from == clientId ? "sent" : "received";
+    const div = document.createElement('div');
+    div.className = msg.from == clientId ? 'sent' : 'received';
     div.textContent = msg.text;
     box.appendChild(div);
   });
