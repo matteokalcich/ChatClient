@@ -144,7 +144,7 @@
   }
   
   #startCall {
-    background-color: #25D366;
+    background-color: #ededed;
     border: none;
     color: white;
     font-size: 18px;
@@ -154,12 +154,9 @@
     transition: background-color 0.3s ease;
   }
   
-  #startCall:hover {
-    background-color: #1da851;
-  }
 
   #endCall {
-    background-color: #FF4D4D;
+    background-color: #ededed;
     border: none;
     color: white;
     font-size: 18px;
@@ -169,9 +166,6 @@
     transition: background-color 0.3s ease;
   }
   
-  #endCall:hover {
-    background-color: #cc3c3c;
-  }
   
   
   #status {

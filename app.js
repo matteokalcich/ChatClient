@@ -36,14 +36,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
     pendingCandidates.forEach(c => peerConnection.addIceCandidate(new RTCIceCandidate(c)));
     pendingCandidates = [];
-    status_call.textContent = "✅ Chiamata accettata";
+    alert("✅ Chiamata accettata");
     pendingCall = null;
   };
 
   document.getElementById("rejectCall").onclick = () => {
+    debugger;
     hideCallBar();
+    let from = pendingCall.from;
     pendingCall = null;
-    status_call.textContent = "❌ Chiamata rifiutata";
+    alert("❌ Chiamata rifiutata");
+    socket.send(JSON.stringify({ type: 'reject', to: from }));
   };
 
   startCall.onclick = async () => {
@@ -59,7 +62,7 @@ document.addEventListener("DOMContentLoaded", () => {
       to: selectedClientId
     }));
   
-    status_call.textContent = "📞 In attesa di risposta...";
+    alert("📞 In attesa di risposta...");
     document.getElementById("startCall").style.display = "none";
     document.getElementById("endCall").style.display = "inline-block";
   };
@@ -74,7 +77,7 @@ document.addEventListener("DOMContentLoaded", () => {
       localStream = null;
     }
   
-    status_call.textContent = "📴 Chiamata terminata";
+    alert("❌ Chiamata terminata");
     document.getElementById("startCall").style.display = "inline-block";
     document.getElementById("endCall").style.display = "none";
   };
@@ -90,7 +93,11 @@ document.addEventListener("DOMContentLoaded", () => {
   socket.onmessage = async (event) => {
     const data = JSON.parse(event.data);
 
+    debugger;
+
     switch (data.type) {
+
+
       case "init":
         clientId = data.id;
         break;
@@ -120,7 +127,7 @@ document.addEventListener("DOMContentLoaded", () => {
         await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
         pendingCandidates.forEach(c => peerConnection.addIceCandidate(new RTCIceCandidate(c)));
         pendingCandidates = [];
-        status_call.textContent = "✅ Chiamata connessa";
+        alert("✅ Chiamata connessa");
         break;
 
       case "ice-candidate":
@@ -129,6 +136,15 @@ document.addEventListener("DOMContentLoaded", () => {
         } else {
           pendingCandidates.push(data.candidate);
         }
+        break;
+
+      case "reject":
+        if (peerConnection) {
+          peerConnection.close();
+          peerConnection = null;
+        }
+        document.getElementById("endCall").style.display = "none";
+        alert("❌ Chiamata rifiutata");
         break;
     }
   };
