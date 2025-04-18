@@ -13,6 +13,78 @@
     display: flex;
     height: 100vh;
   }
+
+  /* Barra chiamata base (nascosta di default) */
+.call-bar {
+  display: none;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 999;
+  font-size: 16px;
+  font-weight: 500;
+  font-family: "Segoe UI", sans-serif;
+  transition: all 0.3s ease;
+}
+
+
+/* Quando c'è una chiamata in arrivo */
+.call-bar.active {
+  display: flex;
+  background: linear-gradient(90deg, #ffdd57, #ffb347);
+  border-bottom: 2px solid #ffa500;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  animation: slideDown 0.3s ease-out forwards;
+}
+
+.call-bar span {
+  font-weight: bold;
+  color: #333;
+}
+
+.call-bar button {
+  margin-left: 10px;
+  padding: 10px 18px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+#acceptCall {
+  background-color: #25D366;
+  color: white;
+}
+
+#acceptCall:hover {
+  background-color: #20b558;
+}
+
+#rejectCall {
+  background-color: #FF4D4D;
+  color: white;
+}
+
+#rejectCall:hover {
+  background-color: #cc3c3c;
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+  
   
   .sidebar {
     width: 30%;
@@ -56,11 +128,57 @@
   }
   
   .chat-header {
-    padding: 15px;
+    padding: 15px 20px;
     background-color: #ededed;
     font-weight: bold;
     border-bottom: 1px solid #ddd;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
   }
+  
+  .call-status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  
+  #startCall {
+    background-color: #25D366;
+    border: none;
+    color: white;
+    font-size: 18px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  
+  #startCall:hover {
+    background-color: #1da851;
+  }
+
+  #endCall {
+    background-color: #FF4D4D;
+    border: none;
+    color: white;
+    font-size: 18px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  
+  #endCall:hover {
+    background-color: #cc3c3c;
+  }
+  
+  
+  #status {
+    font-size: 14px;
+    color: #555;
+  }
+  
   
   .chat-messages {
     flex: 1;
