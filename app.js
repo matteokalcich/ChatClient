@@ -1,3 +1,6 @@
+/**********************
+ * VARIABILI GLOBALI
+ **********************/
 let socket;
 let clientId = null;
 let selectedClientId = null;
@@ -5,85 +8,40 @@ let username = null;
 let chats = {};
 let pallini = new Map();
 
-const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 let peerConnection;
 let localStream;
 let pendingCandidates = [];
+let pendingCall = null;
+
+const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
 let status_call, startCall;
 
+/**********************
+ * AVVIO DELL'APPLICAZIONE
+ **********************/
 document.addEventListener("DOMContentLoaded", () => {
   username = prompt("Inserisci il tuo nome utente:");
   if (!username) return alert("Nome utente obbligatorio.");
 
+  // Assegno riferimenti ai pulsanti chiamata
   status_call = document.getElementById("status");
   startCall = document.getElementById("startCall");
 
-  document.getElementById("acceptCall").onclick = async () => {
-    hideCallBar();
+  // Inizializzazione WebSocket
+  initWebSocket();
 
-    await createPeerConnection();
-    await peerConnection.setRemoteDescription(new RTCSessionDescription(pendingCall.offer));
+  // Listener pulsanti chiamata
+  initCallButtons();
 
-    const answer = await peerConnection.createAnswer();
-    await peerConnection.setLocalDescription(answer);
+  // Listener invio messaggio
+  document.getElementById("sendButton").onclick = sendMessage;
+});
 
-    socket.send(JSON.stringify({
-      type: 'answer',
-      answer,
-      to: pendingCall.from
-    }));
-
-    pendingCandidates.forEach(c => peerConnection.addIceCandidate(new RTCIceCandidate(c)));
-    pendingCandidates = [];
-    alert("✅ Chiamata accettata");
-    pendingCall = null;
-  };
-
-  document.getElementById("rejectCall").onclick = () => {
-    debugger;
-    hideCallBar();
-    let from = pendingCall.from;
-    pendingCall = null;
-    alert("❌ Chiamata rifiutata");
-    socket.send(JSON.stringify({ type: 'reject', to: from }));
-  };
-
-  startCall.onclick = async () => {
-    if (!selectedClientId) return alert("Seleziona un utente!");
-    await createPeerConnection();
-
-    const offer = await peerConnection.createOffer();
-    await peerConnection.setLocalDescription(offer);
-  
-    socket.send(JSON.stringify({
-      type: 'offer',
-      offer,
-      to: selectedClientId
-    }));
-  
-    alert("📞 In attesa di risposta...");
-    document.getElementById("startCall").style.display = "none";
-    document.getElementById("endCall").style.display = "inline-block";
-  };
-
-  document.getElementById("endCall").onclick = () => {
-    if (peerConnection) {
-      peerConnection.close();
-      peerConnection = null;
-    }
-    if (localStream) {
-      localStream.getTracks().forEach(track => track.stop());
-      localStream = null;
-    }
-  
-    alert("❌ Chiamata terminata");
-    document.getElementById("startCall").style.display = "inline-block";
-    document.getElementById("endCall").style.display = "none";
-  };
-  
-  
-
+/**********************
+ * INIZIALIZZAZIONE SOCKET
+ **********************/
+function initWebSocket() {
   socket = new WebSocket('ws://localhost:8081');
 
   socket.onopen = () => {
@@ -92,12 +50,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   socket.onmessage = async (event) => {
     const data = JSON.parse(event.data);
-
     debugger;
 
     switch (data.type) {
-
-
       case "init":
         clientId = data.id;
         break;
@@ -108,14 +63,7 @@ document.addEventListener("DOMContentLoaded", () => {
         break;
 
       case "message":
-        if (!chats[data.from]) chats[data.from] = [];
-        chats[data.from].push({ from: data.from, text: data.text });
-
-        if (data.from == selectedClientId) renderMessages(data.from);
-        else {
-          const pallino = pallini.get(data.from);
-          if (pallino) pallino.style.display = "inline-block";
-        }
+        handleIncomingMessage(data);
         break;
 
       case "offer":
@@ -139,30 +87,45 @@ document.addEventListener("DOMContentLoaded", () => {
         break;
 
       case "reject":
-        if (peerConnection) {
-          peerConnection.close();
-          peerConnection = null;
-        }
-        document.getElementById("endCall").style.display = "none";
+        endCall();
         alert("❌ Chiamata rifiutata");
         break;
     }
   };
+}
 
-  document.getElementById("sendButton").onclick = () => {
-    const input = document.getElementById("messageInput");
-    const text = input.value.trim();
-    if (!text || !selectedClientId) return;
+/**********************
+ * GESTIONE MESSAGGI
+ **********************/
+function sendMessage() {
+  const input = document.getElementById("messageInput");
+  const text = input.value.trim();
+  if (!text || !selectedClientId) return;
 
-    socket.send(JSON.stringify({ type: "message", to: selectedClientId, text }));
-    if (!chats[selectedClientId]) chats[selectedClientId] = [];
-    chats[selectedClientId].push({ from: clientId, text });
+  socket.send(JSON.stringify({ type: "message", to: selectedClientId, text }));
 
-    renderMessages(selectedClientId);
-    input.value = "";
-  };
-});
+  if (!chats[selectedClientId]) chats[selectedClientId] = [];
+  chats[selectedClientId].push({ from: clientId, text });
 
+  renderMessages(selectedClientId);
+  input.value = "";
+}
+
+function handleIncomingMessage(data) {
+  if (!chats[data.from]) chats[data.from] = [];
+  chats[data.from].push({ from: data.from, text: data.text });
+
+  if (data.from == selectedClientId) {
+    renderMessages(data.from);
+  } else {
+    const pallino = pallini.get(data.from);
+    if (pallino) pallino.style.display = "inline-block";
+  }
+}
+
+/**********************
+ * INTERFACCIA UTENTE: LISTA UTENTI E CHAT
+ **********************/
 function updateUserList(users) {
   const listDiv = document.getElementById("userList");
   listDiv.innerHTML = "";
@@ -217,6 +180,63 @@ function renderMessages(userId) {
   box.scrollTop = box.scrollHeight;
 }
 
+/**********************
+ * GESTIONE CHIAMATE (WebRTC)
+ **********************/
+function initCallButtons() {
+  document.getElementById("acceptCall").onclick = async () => {
+    hideCallBar();
+
+    await createPeerConnection();
+    await peerConnection.setRemoteDescription(new RTCSessionDescription(pendingCall.offer));
+
+    const answer = await peerConnection.createAnswer();
+    await peerConnection.setLocalDescription(answer);
+
+    socket.send(JSON.stringify({
+      type: 'answer',
+      answer,
+      to: pendingCall.from
+    }));
+
+    pendingCandidates.forEach(c => peerConnection.addIceCandidate(new RTCIceCandidate(c)));
+    pendingCandidates = [];
+    alert("✅ Chiamata accettata");
+    pendingCall = null;
+  };
+
+  document.getElementById("rejectCall").onclick = () => {
+    hideCallBar();
+    let from = pendingCall.from;
+    pendingCall = null;
+    alert("❌ Chiamata rifiutata");
+    socket.send(JSON.stringify({ type: 'reject', to: from }));
+  };
+
+  startCall.onclick = async () => {
+    if (!selectedClientId) return alert("Seleziona un utente!");
+    await createPeerConnection();
+
+    const offer = await peerConnection.createOffer();
+    await peerConnection.setLocalDescription(offer);
+
+    socket.send(JSON.stringify({
+      type: 'offer',
+      offer,
+      to: selectedClientId
+    }));
+
+    alert("📞 In attesa di risposta...");
+    document.getElementById("startCall").style.display = "none";
+    document.getElementById("endCall").style.display = "inline-block";
+  };
+
+  document.getElementById("endCall").onclick = () => {
+    endCall();
+    alert("❌ Chiamata terminata");
+  };
+}
+
 async function createPeerConnection() {
   peerConnection = new RTCPeerConnection(config);
   localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -242,9 +262,22 @@ async function createPeerConnection() {
   };
 }
 
-//Gestione css per la barra chiamata in arrivo
-let pendingCall = null;
+function endCall() {
+  if (peerConnection) {
+    peerConnection.close();
+    peerConnection = null;
+  }
+  if (localStream) {
+    localStream.getTracks().forEach(track => track.stop());
+    localStream = null;
+  }
+  document.getElementById("startCall").style.display = "inline-block";
+  document.getElementById("endCall").style.display = "none";
+}
 
+/**********************
+ * UI: BARRA CHIAMATA IN ARRIVO
+ **********************/
 function showCallBar(callerName) {
   const bar = document.getElementById("incomingCallBar");
   document.getElementById("callerName").textContent = callerName;
