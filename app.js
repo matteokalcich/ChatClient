@@ -49,7 +49,7 @@ document.addEventListener("DOMContentLoaded", () => {
   startCall.onclick = async () => {
     if (!selectedClientId) return alert("Seleziona un utente!");
     await createPeerConnection();
-  
+
     const offer = await peerConnection.createOffer();
     await peerConnection.setLocalDescription(offer);
   
@@ -81,10 +81,10 @@ document.addEventListener("DOMContentLoaded", () => {
   
   
 
-  socket = new WebSocket("ws://localhost:8081");
+  socket = new WebSocket('ws://localhost:8081');
 
   socket.onopen = () => {
-    socket.send(JSON.stringify({ type: "setName", name: username }));
+    socket.send(JSON.stringify({ type: 'setName', name: username }));
   };
 
   socket.onmessage = async (event) => {
@@ -155,11 +155,11 @@ function updateUserList(users) {
   users.forEach(user => {
     if (user.id == clientId) return;
 
-    const wrapperDiv = document.createElement("div");
-    wrapperDiv.className = "userEntry";
-    wrapperDiv.style.display = "flex";
-    wrapperDiv.style.alignItems = "center";
-    wrapperDiv.style.gap = "8px";
+    const wrapperDiv = document.createElement('div');
+    wrapperDiv.className = 'userEntry';
+    wrapperDiv.style.display = 'flex';
+    wrapperDiv.style.alignItems = 'center';
+    wrapperDiv.style.gap = '8px';
 
     const btn = document.createElement("button");
     btn.textContent = user.name;
