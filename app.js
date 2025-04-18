@@ -75,6 +75,9 @@ function initWebSocket() {
         await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
         pendingCandidates.forEach(c => peerConnection.addIceCandidate(new RTCIceCandidate(c)));
         pendingCandidates = [];
+        
+        document.getElementById("endCall").style.display = "inline-block";
+        document.getElementById("startCall").style.display = "none";
         alert("✅ Chiamata connessa");
         break;
 
