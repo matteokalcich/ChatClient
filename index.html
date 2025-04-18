@@ -7,13 +7,31 @@
   <link rel="stylesheet" href="style.css"/>
 </head>
 <body>
+  
   <div class="container">
+    <!-- Barra chiamata in alto -->
+    <div id="incomingCallBar" class="call-bar">
+      <span id="callerName" style="font-weight: bold;"></span> ti sta chiamando...
+      <button id="acceptCall">Accetta</button>
+      <button id="rejectCall">Rifiuta</button>
+    </div>
+
     <aside class="sidebar">
       <div class="header">Utenti</div>
       <div id="userList" class="user-list"></div>
     </aside>
+
+    
+
     <main class="chat">
-      <div id="chatHeader" class="chat-header">Seleziona un utente</div>
+      <div id="chatHeader" class="chat-header">
+        <span id="user">Seleziona un utente</span>
+        <div class="call-status">
+          <button id="startCall">📞</button>
+          <button id="endCall" style="display: none;">❌</button>
+        </div>
+      </div>
+      
       <div id="chatMessages" class="chat-messages"></div>
       <div class="chat-input">
         <input type="text" id="messageInput" placeholder="Scrivi un messaggio..."/>
@@ -21,6 +39,7 @@
       </div>
     </main>
   </div>
+
   <script src="app.js"></script>
 </body>
 </html>
