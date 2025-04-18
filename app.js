@@ -86,11 +86,11 @@ document.addEventListener("DOMContentLoaded", () => {
       });
       pendingCandidates = [];
   
-      status.textContent = "✅ Chiamata ricevuta";
+      status_call.textContent = "✅ Chiamata ricevuta";
   
     } else if (data.type === 'answer') {
       await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
-      status.textContent = "✅ Chiamata connessa";
+      status_call.textContent = "✅ Chiamata connessa";
   
       // ✅ Ora possiamo processare le ICE candidate salvate
       pendingCandidates.forEach(candidate => {
